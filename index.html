@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>探索ゲームDX</title>
+<style>
+body { margin:0; background:#ccd; font-family:sans-serif; }
+
+#game {
+  width:900px; height:520px;
+  margin:20px auto;
+  position:relative;
+  border:6px solid #333;
+  background:#aaa;
+  overflow:hidden;
+}
+
+/* 壁 */
+.wall { position:absolute; background:#666; }
+#top {top:0;left:0;width:100%;height:20px;}
+#bottom {bottom:0;left:0;width:100%;height:20px;}
+#left {top:0;left:0;width:20px;height:100%;}
+#right {top:0;right:0;width:20px;height:100%;}
+
+/* 床 */
+#floor {
+  position:absolute;
+  top:20px; left:20px; right:20px; bottom:20px;
+  background:#eee;
+}
+
+/* 家具 */
+.furniture {
+  position:absolute;
+  padding:10px;
+  background:#7bc;
+  border:2px solid #333;
+  cursor:pointer;
+  transition:0.2s;
+}
+.furniture:hover {
+  transform:scale(1.1);
+}
+
+/* インベントリ */
+#inventory {
+  position:fixed;
+  bottom:0;
+  width:100%;
+  background:#222;
+  color:#fff;
+  padding:10px;
+}
+.item {
+  display:inline-block;
+  margin:5px;
+  padding:5px 10px;
+  background:#555;
+  cursor:pointer;
+}
+.selected {
+  background:#ff9800 !important;
+}
+
+/* アニメーション */
+.fade {
+  animation:fade 0.4s;
+}
+@keyframes fade {
+  from {opacity:0;}
+  to {opacity:1;}
+}
+</style>
+</head>
+<body>
+
+<h2 style="text-align:center;">探索ゲームDX</h2>
+
+<div id="game">
+<div id="top" class="wall"></div>
+<div id="bottom" class="wall"></div>
+<div id="left" class="wall"></div>
+<div id="right" class="wall"></div>
+<div id="floor"></div>
+</div>
+
+<div id="inventory">インベントリ:</div>
+
+<script>
+let inventory = [];
+let selectedItem = null;
+
+let stage = 1;
+let roomCount = 0;
+
+const baseLayouts = [
+  [{name:"机",item:"鍵"}, {name:"棚"}, {name:"ドア",type:"door"}],
+  [{name:"ベッド",item:"鍵"}, {name:"タンス"}, {name:"ドア",type:"door"}],
+  [{name:"ソファ"}, {name:"箱",item:"鍵"}, {name:"ドア",type:"door"}],
+  [{name:"冷蔵庫"}, {name:"引き出し",item:"鍵"}, {name:"ドア",type:"door"}],
+  [{name:"本棚"}, {name:"ロッカー",item:"鍵"}, {name:"ドア",type:"door"}]
+];
+
+function loadRoom(){
+  const floor = document.getElementById("floor");
+  floor.innerHTML = "";
+  floor.className = "fade";
+
+  let layout = JSON.parse(JSON.stringify(baseLayouts[Math.floor(Math.random()*baseLayouts.length)]));
+
+  layout.forEach((obj,i)=>{
+    let div = document.createElement("div");
+    div.className = "furniture";
+    div.style.left = (100 + i*200) + "px";
+    div.style.top = (150 + Math.random()*100) + "px";
+    div.innerText = obj.name;
+
+    div.onclick = ()=>interact(obj);
+    floor.appendChild(div);
+  });
+}
+
+function interact(obj){
+  if(obj.item){
+    inventory.push(obj.item);
+    updateInventory();
+    alert(obj.item + "を手に入れた！");
+    obj.item = null;
+  }
+  else if(obj.type === "door"){
+    if(selectedItem === "鍵"){
+      roomCount++;
+      selectedItem = null;
+
+      if(roomCount >= 5){
+        stage++;
+        roomCount = 0;
+        alert("ステージ " + (stage-1) + " クリア！");
+      }
+
+      if(stage > 5){
+        alert("ゲームクリア！！🎉");
+        stage = 1;
+        inventory = [];
+      }
+
+      loadRoom();
+    } else {
+      alert("鍵が必要！");
+    }
+  }
+  else {
+    alert("何もない");
+  }
+}
+
+function updateInventory(){
+  let html = "インベントリ:";
+  inventory.forEach(i=>{
+    let cls = (i === selectedItem) ? "item selected" : "item";
+    html += `<span class="${cls}" onclick="selectItem('${i}')">${i}</span>`;
+  });
+  document.getElementById("inventory").innerHTML = html;
+}
+
+function selectItem(item){
+  selectedItem = item;
+  updateInventory();
+}
+
+loadRoom();
+</script>
+
+</body>
+</html>
