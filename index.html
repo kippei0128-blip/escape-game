@@ -2,44 +2,38 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>探索ゲームDX</title>
+<title>脱出ゲーム進化版</title>
+
 <style>
-body { margin:0; background:#ccd; font-family:sans-serif; }
+body { margin:0; background:#89a; font-family:sans-serif; }
 
 #game {
-  width:900px; height:520px;
+  width:900px; height:500px;
   margin:20px auto;
+  background:#cde;
   position:relative;
-  border:6px solid #333;
-  background:#aaa;
-  overflow:hidden;
+  border:5px solid #333;
 }
 
-/* 壁 */
-.wall { position:absolute; background:#666; }
-#top {top:0;left:0;width:100%;height:20px;}
-#bottom {bottom:0;left:0;width:100%;height:20px;}
-#left {top:0;left:0;width:20px;height:100%;}
-#right {top:0;right:0;width:20px;height:100%;}
-
-/* 床 */
-#floor {
-  position:absolute;
-  top:20px; left:20px; right:20px; bottom:20px;
-  background:#eee;
-}
-
-/* 家具 */
+/* 家具（イラスト風） */
 .furniture {
   position:absolute;
-  padding:10px;
-  background:#7bc;
+  width:80px; height:80px;
+  background:#fff;
   border:2px solid #333;
-  cursor:pointer;
-  transition:0.2s;
+  text-align:center;
+  font-size:40px;
+  line-height:80px;
 }
-.furniture:hover {
-  transform:scale(1.1);
+
+/* ドア */
+.door {
+  position:absolute;
+  right:50px;
+  top:150px;
+  width:100px; height:150px;
+  background:brown;
+  border:3px solid #000;
 }
 
 /* インベントリ */
@@ -48,127 +42,134 @@ body { margin:0; background:#ccd; font-family:sans-serif; }
   bottom:0;
   width:100%;
   background:#222;
-  color:#fff;
   padding:10px;
 }
+
 .item {
   display:inline-block;
   margin:5px;
-  padding:5px 10px;
+  padding:10px;
   background:#555;
-  cursor:pointer;
-}
-.selected {
-  background:#ff9800 !important;
+  color:#fff;
+  cursor:grab;
 }
 
-/* アニメーション */
-.fade {
-  animation:fade 0.4s;
-}
-@keyframes fade {
-  from {opacity:0;}
-  to {opacity:1;}
+/* セリフ */
+#textBox {
+  position:fixed;
+  bottom:80px;
+  width:100%;
+  background:#000;
+  color:#fff;
+  padding:10px;
+  text-align:center;
 }
 </style>
+
 </head>
 <body>
 
-<h2 style="text-align:center;">探索ゲームDX</h2>
-
-<div id="game">
-<div id="top" class="wall"></div>
-<div id="bottom" class="wall"></div>
-<div id="left" class="wall"></div>
-<div id="right" class="wall"></div>
-<div id="floor"></div>
-</div>
-
-<div id="inventory">インベントリ:</div>
+<div id="game"></div>
+<div id="textBox"></div>
+<div id="inventory"></div>
 
 <script>
-let inventory = [];
-let selectedItem = null;
 
-let stage = 1;
-let roomCount = 0;
+let inventory = ["キッチンの鍵"];
+let dragging = null;
 
-const baseLayouts = [
-  [{name:"机",item:"鍵"}, {name:"棚"}, {name:"ドア",type:"door"}],
-  [{name:"ベッド",item:"鍵"}, {name:"タンス"}, {name:"ドア",type:"door"}],
-  [{name:"ソファ"}, {name:"箱",item:"鍵"}, {name:"ドア",type:"door"}],
-  [{name:"冷蔵庫"}, {name:"引き出し",item:"鍵"}, {name:"ドア",type:"door"}],
-  [{name:"本棚"}, {name:"ロッカー",item:"鍵"}, {name:"ドア",type:"door"}]
+/* セリフ表示 */
+function say(text){
+  document.getElementById("textBox").innerText = text;
+}
+
+/* 初期セリフ */
+let intro = [
+"ここはどこだ、、、",
+"どうやら閉じ込められてしまったようだ、、、",
+"どうにかして脱出しよう！"
 ];
 
+let i=0;
+function nextIntro(){
+  if(i < intro.length){
+    say(intro[i]);
+    i++;
+    setTimeout(nextIntro,1500);
+  }
+}
+nextIntro();
+
+/* 部屋ロード */
 function loadRoom(){
-  const floor = document.getElementById("floor");
-  floor.innerHTML = "";
-  floor.className = "fade";
+  const game = document.getElementById("game");
+  game.innerHTML = "";
 
-  let layout = JSON.parse(JSON.stringify(baseLayouts[Math.floor(Math.random()*baseLayouts.length)]));
+  // 家具
+  createFurniture("🛏",100,200,null);
+  createFurniture("📦",300,200,"寝室の鍵");
+  createFurniture("📚",500,200,null);
 
-  layout.forEach((obj,i)=>{
-    let div = document.createElement("div");
-    div.className = "furniture";
-    div.style.left = (100 + i*200) + "px";
-    div.style.top = (150 + Math.random()*100) + "px";
-    div.innerText = obj.name;
-
-    div.onclick = ()=>interact(obj);
-    floor.appendChild(div);
-  });
-}
-
-function interact(obj){
-  if(obj.item){
-    inventory.push(obj.item);
-    updateInventory();
-    alert(obj.item + "を手に入れた！");
-    obj.item = null;
-  }
-  else if(obj.type === "door"){
-    if(selectedItem === "鍵"){
-      roomCount++;
-      selectedItem = null;
-
-      if(roomCount >= 5){
-        stage++;
-        roomCount = 0;
-        alert("ステージ " + (stage-1) + " クリア！");
-      }
-
-      if(stage > 5){
-        alert("ゲームクリア！！🎉");
-        stage = 1;
-        inventory = [];
-      }
-
-      loadRoom();
+  // ドア
+  const door = document.createElement("div");
+  door.className = "door";
+  door.ondragover = e => e.preventDefault();
+  door.ondrop = ()=>{
+    if(dragging === "寝室の鍵"){
+      say("鍵が開いた！");
+      alert("クリア！");
     } else {
-      alert("鍵が必要！");
+      say("違う鍵みたいだ…");
     }
-  }
-  else {
-    alert("何もない");
-  }
+  };
+  game.appendChild(door);
 }
 
+/* 家具作成 */
+function createFurniture(icon,x,y,item){
+  const div = document.createElement("div");
+  div.className = "furniture";
+  div.innerText = icon;
+  div.style.left = x+"px";
+  div.style.top = y+"px";
+
+  div.onclick = ()=>{
+    if(item){
+      inventory.push(item);
+      updateInventory();
+      say(item+"を手に入れた！");
+      item=null;
+    } else {
+      say("特に何もない");
+    }
+  };
+
+  document.getElementById("game").appendChild(div);
+}
+
+/* インベントリ */
 function updateInventory(){
-  let html = "インベントリ:";
-  inventory.forEach(i=>{
-    let cls = (i === selectedItem) ? "item selected" : "item";
-    html += `<span class="${cls}" onclick="selectItem('${i}')">${i}</span>`;
+  const inv = document.getElementById("inventory");
+  inv.innerHTML = "";
+
+  inventory.forEach(item=>{
+    let div = document.createElement("div");
+    div.className = "item";
+    div.innerText = item;
+    div.draggable = true;
+
+    div.ondragstart = ()=>{
+      dragging = item;
+      say(item+"を持った");
+    };
+
+    inv.appendChild(div);
   });
-  document.getElementById("inventory").innerHTML = html;
 }
 
-function selectItem(item){
-  selectedItem = item;
-  updateInventory();
-}
-
+updateInventory();
 loadRoom();
+
 </script>
 
 </body>
